@@ -1029,16 +1029,16 @@ input:focus, select:focus { border-color: #1aa5c2; box-shadow: 0 0 0 3px rgba(35
 .setting-recommendation-select {
   min-width: 170px;
 }
-#resultTable th:nth-child(7),
-#resultTable td:nth-child(7) {
+#resultTable th:nth-child(8),
+#resultTable td:nth-child(8) {
   min-width: 120px;
-}
-#resultTable th:nth-child(9),
-#resultTable td:nth-child(9) {
-  min-width: 190px;
 }
 #resultTable th:nth-child(10),
 #resultTable td:nth-child(10) {
+  min-width: 190px;
+}
+#resultTable th:nth-child(11),
+#resultTable td:nth-child(11) {
   min-width: 190px;
 }
 
@@ -1544,10 +1544,10 @@ main #upload .setting-check-summary {
 
 
 /* ===== UI v38: kolom nilai acuan sebelum nilai setting ===== */
-#resultTable th:nth-child(3),
-#resultTable td:nth-child(3),
 #resultTable th:nth-child(4),
-#resultTable td:nth-child(4) {
+#resultTable td:nth-child(4),
+#resultTable th:nth-child(5),
+#resultTable td:nth-child(5) {
   text-align: center;
 }
 
@@ -2800,12 +2800,27 @@ body:not(.auth-ok) .app-shell {
   background: #d8f3f7 !important;
 }
 
+/* ===== UI v123: tujuh kartu ringkasan Setting dalam satu baris ===== */
+#upload .setting-check-summary,
+#upload .summary-grid.setting-check-summary,
+main #upload .setting-check-summary {
+  grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+}
+@media (max-width: 900px) {
+  #upload .setting-check-summary,
+  #upload .summary-grid.setting-check-summary,
+  main #upload .setting-check-summary {
+    grid-template-columns: repeat(7, minmax(92px, 1fr)) !important;
+  }
+}
+#resultTable .setting-row-number { min-width: 32px; text-align: center; }
+
 </style>
 
   <script>
   (function () {
     "use strict";
-    const BUILD = "UI v122 | Build 2026.11.21";
+    const BUILD = "UI v123 | Build 2026.11.21";
     const AUTH_KEY = "relayChecker.authSession.v1";
     let busyUntil = 0;
 
@@ -3268,7 +3283,7 @@ body:not(.auth-ok) .app-shell {
               <div class="summary-grid result-summary setting-check-summary">
             <article class="stat-card blue">
               <div class="stat-dot"></div>
-              <span class="stat-label">TOTAL DIBANDINGKAN</span>
+              <span class="stat-label">TOTAL PARAMETER SETTING</span>
               <strong id="resultTotal">0</strong>
             </article>
             <article class="stat-card success">
@@ -3285,6 +3300,11 @@ body:not(.auth-ok) .app-shell {
               <div class="stat-dot"></div>
               <span class="stat-label">TANPA ACUAN</span>
               <strong id="resultMissing">0</strong>
+            </article>
+            <article class="stat-card alert issue-card">
+              <div class="stat-dot"></div>
+              <span class="stat-label">TIDAK DITEMUKAN</span>
+              <strong id="resultNotFound">0</strong>
             </article>
             <article class="stat-card alert issue-card">
               <div class="stat-dot"></div>
@@ -3314,6 +3334,7 @@ body:not(.auth-ok) .app-shell {
               <table class="data-table" id="resultTable">
                 <thead>
                   <tr>
+                    <th>No.</th>
                     <th class="filterable-th" data-filter-key="sheet"><div class="th-filter"><span>Group Setting</span><button type="button" class="excel-filter-btn" data-filter-menu="sheet" title="Filter dan urutkan Group Setting">▾</button></div></th>
                     <th class="filterable-th" data-filter-key="title"><div class="th-filter"><span>SETTING TITLE</span><button type="button" class="excel-filter-btn" data-filter-menu="title" title="Filter dan urutkan SETTING TITLE">▾</button></div></th>
                     <th><div class="th-filter"><span>Nilai Acuan</span></div></th>
@@ -3327,7 +3348,7 @@ body:not(.auth-ok) .app-shell {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr class="empty-row"><td colspan="10">Belum ada hasil pemeriksaan.</td></tr>
+                  <tr class="empty-row"><td colspan="11">Belum ada hasil pemeriksaan.</td></tr>
                 </tbody>
               </table>
             </div>
@@ -6862,18 +6883,18 @@ function renderResults() {
   updateFilterButtons();
 
   if (!lastResults.length) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="10">Belum ada hasil pemeriksaan.</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="11">Belum ada hasil pemeriksaan.</td></tr>`;
     return;
   }
 
   const tableRows = getResultRowsForWebTable();
   const filtered = sortResultRows(applyResultFilters(tableRows));
   if (!filtered.length) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="10">Tidak ada hasil yang sesuai filter.</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="11">Tidak ada hasil yang sesuai filter.</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = filtered.map(row => {
+  tbody.innerHTML = filtered.map((row, index) => {
     const missing = row.status === "Sesuai" ? {} : (invalidSettingFields.get(row.id) || {});
     const manualCalculationInput = isCalculationSettingRow(row) && getSettingCompareCategoryMode() === "fix_calc";
     const expectedCell = manualCalculationInput
@@ -6886,6 +6907,7 @@ function renderResults() {
       : `<input class="table-input justification-input" data-justification-id="${escapeHtml(row.id)}" value="" placeholder="" disabled />`;
     return `
     <tr data-result-row-id="${escapeHtml(row.id)}" class="${rowColorClass}">
+      <td class="setting-row-number">${index + 1}</td>
       <td>${escapeHtml(row.sheet)}</td>
       <td><strong>${escapeHtml(row.title)}</strong></td>
       <td class="center-cell manual-calculation-expected-cell">${expectedCell}</td>
@@ -6907,25 +6929,31 @@ function renderResults() {
 
 
 
-function renderResultSummary() {
-  syncCalculationRowsIntoResults();
-  ensureResultIds();
-  const summaryRows = getResultRowsForSummary();
-  const total = summaryRows.length;
-  const ok = summaryRows.filter(row => row.status === "Sesuai").length;
-  const mismatch = summaryRows.filter(row => row.status === "Tidak Sesuai" || row.status === "SELISIH").length;
-  const missing = summaryRows.filter(row => row.status === "Tidak Ditemukan" || row.status === "Tanpa Acuan").length;
-  const resetOnline = summaryRows.filter(row => row.recommendation === "Perlu Resetting Online" || row.recommendation === "Resetting Online").length;
-  const resetOffline = summaryRows.filter(row => row.recommendation === "Perlu Resetting Offline" || row.recommendation === "Resetting Offline").length;
-
-  $("#resultTotal").textContent = total;
-  $("#resultOk").textContent = ok;
-  $("#resultMismatch").textContent = mismatch;
-  $("#resultMissing").textContent = missing;
-  if ($("#resultResetOnline")) $("#resultResetOnline").textContent = resetOnline;
-  if ($("#resultResetOffline")) $("#resultResetOffline").textContent = resetOffline;
+function getSettingSummaryCounts() {
+  // Gunakan kumpulan data yang sama dengan BA: Nilai Fix dan Nilai Perhitungan,
+  // termasuk Tanpa Acuan dan Tidak Ditemukan; Nilai Bebas tetap dikecualikan.
+  const rows = getAllSettingRowsForReport();
+  return {
+    total: rows.length,
+    sesuai: rows.filter(row => row.status === "Sesuai").length,
+    tidakSesuai: rows.filter(row => row.status === "Tidak Sesuai" || row.status === "SELISIH").length,
+    tanpaAcuan: rows.filter(row => row.status === "Tanpa Acuan").length,
+    tidakDitemukan: rows.filter(row => row.status === "Tidak Ditemukan").length,
+    online: rows.filter(row => row.recommendation === "Perlu Resetting Online" || row.recommendation === "Resetting Online").length,
+    offline: rows.filter(row => row.recommendation === "Perlu Resetting Offline" || row.recommendation === "Resetting Offline").length
+  };
 }
 
+function renderResultSummary() {
+  const counts = getSettingSummaryCounts();
+  $("#resultTotal").textContent = counts.total;
+  $("#resultOk").textContent = counts.sesuai;
+  $("#resultMismatch").textContent = counts.tidakSesuai;
+  $("#resultMissing").textContent = counts.tanpaAcuan;
+  $("#resultNotFound").textContent = counts.tidakDitemukan;
+  if ($("#resultResetOnline")) $("#resultResetOnline").textContent = counts.online;
+  if ($("#resultResetOffline")) $("#resultResetOffline").textContent = counts.offline;
+}
 
 const referenceColumnLabels = {
   sheet: "Group Setting",
@@ -11824,19 +11852,11 @@ function buildSignatureBlock() {
 }
 
 function buildSummaryCardsReportSetting() {
-  const rows = getAllSettingRowsForReport();
-  const counts = {
-    total: rows.length,
-    sesuai: rows.filter(row => row.status === "Sesuai").length,
-    tidakSesuai: rows.filter(row => row.status === "Tidak Sesuai").length,
-    tidakDitemukan: rows.filter(row => row.status === "Tidak Ditemukan" || row.status === "Tanpa Acuan").length,
-    online: rows.filter(row => row.recommendation === "Perlu Resetting Online").length,
-    offline: rows.filter(row => row.recommendation === "Perlu Resetting Offline").length
-  };
+  const counts = getSettingSummaryCounts();
   return `
-    <div class="report-summary-grid six">
+    <div class="report-summary-grid seven">
       <div class="report-summary-card">
-        <div class="report-summary-label">TOTAL DIBANDINGKAN</div>
+        <div class="report-summary-label">TOTAL PARAMETER SETTING</div>
         <div class="report-summary-value">${counts.total}</div>
       </div>
       <div class="report-summary-card green">
@@ -11849,6 +11869,10 @@ function buildSummaryCardsReportSetting() {
       </div>
       <div class="report-summary-card red">
         <div class="report-summary-label">TANPA ACUAN</div>
+        <div class="report-summary-value">${counts.tanpaAcuan}</div>
+      </div>
+      <div class="report-summary-card red">
+        <div class="report-summary-label">TIDAK DITEMUKAN</div>
         <div class="report-summary-value">${counts.tidakDitemukan}</div>
       </div>
       <div class="report-summary-card red">
@@ -11941,12 +11965,12 @@ function getSettingReportCellStyleFromClass(rowClassName = "") {
 }
 
 function buildSettingReportTable(rows, emptyText, options = {}) {
-  const headers = ["Group Setting", "SETTING TITLE", "Nilai Acuan", "Nilai Setting", "Unit", "SELISIH", "Kategori", "Status", "Rekomendasi", "Justifikasi Tidak Perlu Resetting", "Rekomendasi UPT"];
+  const headers = ["No.", "Group Setting", "SETTING TITLE", "Nilai Acuan", "Nilai Setting", "Unit", "SELISIH", "Kategori", "Status", "Rekomendasi", "Justifikasi Tidak Perlu Resetting", "Rekomendasi UPT"];
   const blankCell = () => "&nbsp;";
   const isManualFillRow = row => options.manualFill === true && (row.category || row.severity || "") === "Nilai Perhitungan";
   const orderedRows = getReportSettingRowsOrdered(rows);
   const body = orderedRows.length
-    ? orderedRows.map(row => {
+    ? orderedRows.map((row, index) => {
       const category = row.category || row.severity || "";
       const manualFill = isManualFillRow(row) && getSettingCompareCategoryMode() === "fix";
       const rowClassName = getSettingRowColorClass(row);
@@ -11954,6 +11978,7 @@ function buildSettingReportTable(rows, emptyText, options = {}) {
       const cellStyle = getSettingReportCellStyleFromClass(rowClassName);
       return `
       <tr${rowClass}>
+        <td class="narrow center"${cellStyle}>${index + 1}</td>
         <td class="narrow"${cellStyle}>${reportCell(row.sheet)}</td>
         <td class="setting-title-col"${cellStyle}>${reportCell(row.title)}</td>
         <td class="narrow center"${cellStyle}>${manualFill ? blankCell() : reportCell(row.expected)}</td>
@@ -11967,13 +11992,14 @@ function buildSettingReportTable(rows, emptyText, options = {}) {
         <td class="recommendation-upt-col"${cellStyle}><div class="upt-recommendation-line">&nbsp;</div></td>
       </tr>`;
     }).join("")
-    : `<tr><td colspan="11" class="empty-report-cell">${escapeHtml(emptyText || "Belum ada data.")}</td></tr>`;
+    : `<tr><td colspan="12" class="empty-report-cell">${escapeHtml(emptyText || "Belum ada data.")}</td></tr>`;
 
   return `
     <table class="report-table setting-report-table">
       <colgroup>
-        <col style="width:10%">
-        <col style="width:16%">
+        <col style="width:4%">
+        <col style="width:9%">
+        <col style="width:14%">
         <col style="width:8%">
         <col style="width:8%">
         <col style="width:5%">
@@ -11982,7 +12008,7 @@ function buildSettingReportTable(rows, emptyText, options = {}) {
         <col style="width:8%">
         <col style="width:10%">
         <col style="width:10%">
-        <col style="width:12%">
+        <col style="width:11%">
       </colgroup>
       <thead>
         <tr>${headers.map(header => `<th>${escapeHtml(header)}</th>`).join("")}</tr>
@@ -12631,6 +12657,11 @@ async function createInspectionReportPdf() {
     .report-summary-grid.six {
       grid-template-columns: repeat(6, minmax(0, 1fr));
     }
+    .report-summary-grid.seven {
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+    }
+    .report-summary-grid.seven .report-summary-card { padding: 5px 2px; }
+    .report-summary-grid.seven .report-summary-label { font-size: 6px; letter-spacing: 0; }
     .report-summary-card {
       border: 1px solid #c4dee4;
       border-radius: 10px;
