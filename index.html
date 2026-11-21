@@ -2805,7 +2805,7 @@ body:not(.auth-ok) .app-shell {
   <script>
   (function () {
     "use strict";
-    const BUILD = "UI v121 | Build 2026.11.21";
+    const BUILD = "UI v122 | Build 2026.11.21";
     const AUTH_KEY = "relayChecker.authSession.v1";
     let busyUntil = 0;
 
@@ -6003,7 +6003,7 @@ function recalculateCalculationSettingRow(row, expectedValue = row?.expected || 
       ...base,
       status: "Tanpa Acuan",
       diff: "",
-      recommendation: ""
+      recommendation: base.recommendation || ""
     };
   }
 
@@ -6753,6 +6753,7 @@ function autoFillSettingTestData() {
     return;
   }
 
+  syncCalculationRowsIntoResults();
   ensureResultIds();
   const issueRows = getResultRowsForWebTable().filter(row => isSettingIssueStatus(row.status));
   if (!issueRows.length) {
@@ -6777,7 +6778,11 @@ function autoFillSettingTestData() {
   renderResults();
   renderResultSummary();
   renderDashboardStats();
-  showToast(`${issueRows.length} baris setting diisi otomatis dengan ${SETTING_TEST_FILL_VARIANTS.length} variasi skenario uji coba.`);
+  const remaining = getResultRowsForWebTable().filter(row => isSettingIssueStatus(row.status) &&
+    (isBlankRecommendation(row.recommendation) || (isSettingJustificationRequired(row) && !isValidJustification(row.justification || "")))).length;
+  showToast(remaining
+    ? `${issueRows.length - remaining} baris setting terisi; ${remaining} baris masih memerlukan pengisian.`
+    : `${issueRows.length} baris setting diisi otomatis dengan ${SETTING_TEST_FILL_VARIANTS.length} variasi skenario uji coba.`);
 }
 
 function clearSettingMissingField(id, fieldName, value) {
@@ -11279,7 +11284,10 @@ function autoFillLogicTestData() {
   renderManualLogicComparisonTable();
   renderManualLogicSummary();
   renderDashboardStats();
-  showToast(`${rows.length} baris logic diisi otomatis dengan ${LOGIC_TEST_FILL_VARIANTS.length} variasi kombinasi uji coba.`);
+  const remaining = getManualLogicComparableRows().filter(({ draft }) => !isManualLogicRowComplete(draft)).length;
+  showToast(remaining
+    ? `${rows.length - remaining} baris logic terisi; ${remaining} baris masih memerlukan pengisian.`
+    : `${rows.length} baris logic diisi otomatis dengan ${LOGIC_TEST_FILL_VARIANTS.length} variasi kombinasi uji coba.`);
 }
 
 
@@ -11769,7 +11777,11 @@ function isLogicReportRowComplete(row) {
   if (!hasCheckedLogic || !evaluation || evaluation === "Belum diisi") return false;
   if (evaluation === "Sesuai Persis") return !!row.checkImage;
   if (evaluation === "Terdapat Perbedaan Minor" || evaluation === "Terdapat Perbedaan Mayor") {
-    return !!normalize(row.justification || "") && !!normalize(row.recommendation || "");
+    if (!normalize(row.recommendation || "")) return false;
+    if (normalizeKey(row.recommendation || "") === normalizeKey("Tidak Perlu Perubahan Logic")) {
+      return isValidJustification(row.justification || "");
+    }
+    return true;
   }
   return false;
 }
