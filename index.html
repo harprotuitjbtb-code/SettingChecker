@@ -2771,12 +2771,41 @@ body:not(.auth-ok) .app-shell {
   line-height: 1.25;
 }
 
+/* ===== UI v121: mode pengisian otomatis untuk uji coba ===== */
+.test-autofill-settings {
+  border: 1px solid #9fd6df;
+  background: linear-gradient(135deg, #f0fbfd 0%, #f8fcff 100%);
+}
+.test-autofill-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 10px;
+  color: #123f4c;
+  font-weight: 800;
+  cursor: pointer;
+}
+.test-autofill-toggle input {
+  width: 19px;
+  height: 19px;
+  margin-top: 1px;
+  accent-color: #007f91;
+}
+.test-autofill-btn {
+  border-color: #0b8294 !important;
+  background: #eaf9fc !important;
+  color: #096779 !important;
+}
+.test-autofill-btn:hover {
+  background: #d8f3f7 !important;
+}
+
 </style>
 
   <script>
   (function () {
     "use strict";
-    const BUILD = "UI v120 | Build 2026.07.22";
+    const BUILD = "UI v121 | Build 2026.11.21";
     const AUTH_KEY = "relayChecker.authSession.v1";
     let busyUntil = 0;
 
@@ -3275,6 +3304,7 @@ body:not(.auth-ok) .app-shell {
                 <span class="eyebrow result-title">Hasil Pengecekan Setting</span>
               </div>
               <div class="section-actions">
+                <button class="secondary-btn test-autofill-btn" id="autoFillSettingTestBtn" type="button" hidden>Isi Otomatis Uji Coba</button>
                 <button class="secondary-btn danger-soft" id="resetSettingCheckBtn" type="button">Reset Pengisian Pengecekan Setting</button>
                 <button class="primary-btn" id="saveSettingDatabaseBtn" type="button">Simpan ke Database</button>
               </div>
@@ -3351,6 +3381,7 @@ body:not(.auth-ok) .app-shell {
                 <span class="eyebrow result-title">Hasil Pengecekan Logic</span>
               </div>
               <div class="section-actions">
+                <button class="secondary-btn test-autofill-btn" id="autoFillLogicTestBtn" type="button" hidden>Isi Otomatis Uji Coba</button>
                 <button class="secondary-btn danger-soft" id="resetLogicCheckBtn" type="button">Reset Pengisian Pengecekan Logic</button>
               </div>
             </div>
@@ -3592,6 +3623,15 @@ body:not(.auth-ok) .app-shell {
                 <button class="secondary-btn" id="addRelayTypeOptionBtn" type="button">+ Tambah Jenis Relai</button>
               </div>
               <div class="relay-type-options-list" id="relayTypeOptionsList"></div>
+            </div>
+
+            <div class="import-note test-autofill-settings">
+              <strong>Mode Pengisian Otomatis untuk Uji Coba</strong>
+              <p>Jika diaktifkan, tombol <b>Isi Otomatis Uji Coba</b> akan tampil pada tabel pengecekan setting dan logic. Fitur ini mengisi berbagai kombinasi kondisi agar seluruh skenario dapat diuji tanpa pengisian manual satu per satu.</p>
+              <label class="test-autofill-toggle">
+                <input id="enableTestAutoFill" type="checkbox" />
+                <span>Aktifkan tombol pengisian otomatis uji coba</span>
+              </label>
             </div>
 
             <div class="source-settings-grid">
@@ -3900,6 +3940,7 @@ const defaultMenuSources = {
   garduInduk: { label: "Gardu Induk", url: "", sheet: "", range: "E2:E", options: [], rows: [] },
   bay: { label: "Bay", url: "", sheet: "", range: "F2:F", options: [], rows: [] },
   relayTypes: ["LCD", "Distance", "Differential", "OCR"],
+  testAutoFillEnabled: false,
   databaseSetting: {
     label: "Database Setting",
     url: "",
@@ -3921,6 +3962,7 @@ function getMenuSources() {
     garduInduk: { ...defaultMenuSources.garduInduk, ...(saved.garduInduk || {}) },
     bay: { ...defaultMenuSources.bay, ...(saved.bay || {}) },
     relayTypes: uniqueValues(saved.relayTypes || defaultMenuSources.relayTypes),
+    testAutoFillEnabled: saved.testAutoFillEnabled === true,
     databaseSetting: {
       ...defaultMenuSources.databaseSetting,
       ...(saved.databaseSetting || {}),
@@ -3934,6 +3976,19 @@ function getMenuSources() {
 
 function setMenuSources(sources) {
   saveJson(STORAGE_KEYS.menuSources, sources);
+}
+
+function isTestAutoFillEnabled() {
+  return getMenuSources().testAutoFillEnabled === true;
+}
+
+function applyTestAutoFillVisibility() {
+  const enabled = isTestAutoFillEnabled();
+  [$("#autoFillSettingTestBtn"), $("#autoFillLogicTestBtn")].forEach(button => {
+    if (!button) return;
+    button.hidden = !enabled;
+    button.style.display = enabled ? "" : "none";
+  });
 }
 
 function extractSpreadsheetId(url) {
@@ -4533,6 +4588,7 @@ function renderMenuSettings() {
     if ($("#settingDatabaseRedundancyColumn")) $("#settingDatabaseRedundancyColumn").value = sources.databaseSetting?.redundancyColumn || "";
     if ($("#settingDatabaseHeaderRow")) $("#settingDatabaseHeaderRow").value = sources.databaseSetting?.headerRow || "9";
     if ($("#settingDatabaseAppsScriptUrl")) $("#settingDatabaseAppsScriptUrl").value = sources.databaseSetting?.appsScriptUrl || "";
+    if ($("#enableTestAutoFill")) $("#enableTestAutoFill").checked = sources.testAutoFillEnabled === true;
   }
   renderSourcePreview("#uptPreview", "Preview data UPT", sources.upt.options, sources.upt.rows);
   renderSourcePreview("#ultgPreview", "Preview data ULTG", sources.ultg.options, sources.ultg.rows);
@@ -4542,6 +4598,7 @@ function renderMenuSettings() {
   renderRelayTypeOptions();
   populateRelayTypeSelect(getSelectValue("#relayTypeSelect"));
   renderAuthUsersTable();
+  applyTestAutoFillVisibility();
   applySettingsViewOnlyMode(document.getElementById("menu-settings") || document);
 }
 
@@ -4584,6 +4641,7 @@ function collectMenuSettingsFromForm() {
       parameterOptions: current.databaseSetting?.parameterOptions || []
     },
     relayTypes: uniqueValues(current.relayTypes || defaultMenuSources.relayTypes),
+    testAutoFillEnabled: $("#enableTestAutoFill")?.checked === true,
     databaseDriveLink: normalize($("#databaseDriveLink")?.value || current.databaseDriveLink || "")
   };
 }
@@ -4601,6 +4659,7 @@ async function loadMenuSourceDataFromGoogleSheets() {
     garduInduk: { ...sources.garduInduk, options: giData.options, rows: giData.rows },
     bay: { ...sources.bay, options: bayData.options, rows: bayData.rows },
     relayTypes: sources.relayTypes || defaultMenuSources.relayTypes,
+    testAutoFillEnabled: sources.testAutoFillEnabled === true,
     databaseSetting: sources.databaseSetting || defaultMenuSources.databaseSetting,
     databaseDriveLink: sources.databaseDriveLink || ""
   };
@@ -6666,6 +6725,59 @@ function isLogicJustificationRequired(draft) {
 
 function isValidJustification(value) {
   return normalize(value || "").length >= 10;
+}
+
+const SETTING_TEST_FILL_VARIANTS = [
+  {
+    recommendation: "Tidak Perlu Resetting",
+    justification: "Perbedaan telah dievaluasi dan masih memenuhi kebutuhan sistem proteksi yang berlaku."
+  },
+  {
+    recommendation: "Perlu Resetting Online",
+    justification: ""
+  },
+  {
+    recommendation: "Perlu Resetting Offline",
+    justification: ""
+  },
+  {
+    recommendation: "Tidak Perlu Resetting",
+    justification: "Nilai aktual masih dapat dipertahankan berdasarkan hasil evaluasi koordinasi dan kondisi sistem."
+  }
+];
+
+function autoFillSettingTestData() {
+  if (!isTestAutoFillEnabled()) {
+    showToast("Aktifkan pengisian otomatis melalui Pengaturan Menu terlebih dahulu.");
+    applyTestAutoFillVisibility();
+    return;
+  }
+
+  ensureResultIds();
+  const issueRows = getResultRowsForWebTable().filter(row => isSettingIssueStatus(row.status));
+  if (!issueRows.length) {
+    showToast("Tidak ada baris pengecekan setting yang memerlukan rekomendasi.");
+    return;
+  }
+
+  const issueOrder = new Map(issueRows.map((row, index) => [row.id, index]));
+  lastResults = lastResults.map(row => {
+    if (!issueOrder.has(row.id)) return row;
+    const variant = SETTING_TEST_FILL_VARIANTS[issueOrder.get(row.id) % SETTING_TEST_FILL_VARIANTS.length];
+    return {
+      ...row,
+      recommendation: variant.recommendation,
+      justification: variant.justification
+    };
+  });
+
+  invalidSettingFields = new Map();
+  saveJson(STORAGE_KEYS.lastResults, lastResults);
+  saveInspectionPageState();
+  renderResults();
+  renderResultSummary();
+  renderDashboardStats();
+  showToast(`${issueRows.length} baris setting diisi otomatis dengan ${SETTING_TEST_FILL_VARIANTS.length} variasi skenario uji coba.`);
 }
 
 function clearSettingMissingField(id, fieldName, value) {
@@ -8781,6 +8893,8 @@ function getButtonTooltip(button) {
     processBtn: "Memulai proses pengecekan setting dari file Excel yang sudah dipilih. Pengisian tabel pengecekan setting akan direset setelah dikonfirmasi.",
     exportCsvBtn: "Mengunduh seluruh hasil pengecekan setting dalam format CSV.",
     exportMismatchCsvBtn: "Mengunduh hasil pengecekan setting yang berstatus Tidak Sesuai dalam format CSV.",
+    autoFillSettingTestBtn: "Mengisi otomatis rekomendasi dan justifikasi setting dengan variasi skenario uji coba.",
+    autoFillLogicTestBtn: "Mengisi otomatis logic terimplementasi, evaluasi, rekomendasi, dan justifikasi dengan variasi skenario uji coba.",
     resetSettingCheckBtn: "Menampilkan konfirmasi lalu menghapus file Excel, hasil pengecekan setting, justifikasi, rekomendasi, dan filter/sort header setting.",
     resetLogicCheckBtn: "Menampilkan konfirmasi lalu mereset logic terimplementasi, evaluasi, justifikasi, rekomendasi, dan filter/sort header logic.",
     saveSettingDatabaseBtn: "Memigrasikan nilai setting dari file Excel ke Google Sheets database. Pengali Migrasi Database hanya diterapkan pada proses ini.",
@@ -8972,6 +9086,7 @@ function runSystemAudit() {
     check("Export CSV dari toolbar atas", !!$("#exportCsvBtnTop") && !!$("#exportCsvBtn")),
     check("Export hasil tidak sesuai", !!$("#exportMismatchCsvBtn") && typeof toCsv === "function"),
     check("Reset Pengisian Setting", !!$("#resetSettingCheckBtn") && typeof confirmResetSettingCheckInput === "function"),
+    check("Isi Otomatis Uji Coba Setting", !!$("#autoFillSettingTestBtn") && typeof autoFillSettingTestData === "function"),
     check("Simpan ke Database Google Sheets", !!$("#saveSettingDatabaseBtn") && typeof saveSettingResultToDatabase === "function"),
     check("Isian Jenis Relai", !!$("#relayTypeSelect") && typeof populateRelayTypeSelect === "function"),
     check("Isian Redundansi Relai", !!$("#relayRedundancySelect") && typeof normalizeRelayRedundancy === "function"),
@@ -8980,6 +9095,7 @@ function runSystemAudit() {
     check("Filter tabel hasil setting", !!$("#resultTable") && document.querySelectorAll("[data-filter-menu]").length >= 1 && typeof openExcelFilterMenu === "function"),
 
     check("Reset Pengisian Logic", !!$("#resetLogicCheckBtn") && typeof confirmResetLogicCheckInput === "function"),
+    check("Isi Otomatis Uji Coba Logic", !!$("#autoFillLogicTestBtn") && typeof autoFillLogicTestData === "function"),
     check("Filter tabel logic", !!$("#manualLogicTable") && document.querySelectorAll("[data-manual-logic-filter]").length >= 1 && typeof openManualLogicFilterMenu === "function"),
     check("Upload/paste logic manual", typeof setManualLogicCheckImage === "function" && typeof pasteManualLogicImage === "function"),
     check("Modal gambar logic", !!$("#logicImageModal") && typeof openLogicImageModal === "function" && typeof closeLogicImageModal === "function"),
@@ -9474,6 +9590,8 @@ function initEvents() {
 
   $("#resetSettingCheckBtn")?.addEventListener("click", confirmResetSettingCheckInput);
   $("#resetLogicCheckBtn")?.addEventListener("click", confirmResetLogicCheckInput);
+  $("#autoFillSettingTestBtn")?.addEventListener("click", autoFillSettingTestData);
+  $("#autoFillLogicTestBtn")?.addEventListener("click", autoFillLogicTestData);
 
   $("#resultTable thead")?.addEventListener("click", event => {
     const button = event.target.closest("[data-filter-menu]");
@@ -11059,6 +11177,112 @@ function applyManualLogicFilterMenuSelection() {
 }
 
 
+const LOGIC_TEST_FILL_VARIANTS = [
+  {
+    label: "Sesuai Persis",
+    evaluation: "Sesuai Persis",
+    changeNeed: "",
+    justification: "",
+    logicUnavailable: false,
+    useReferenceImage: true
+  },
+  {
+    label: "Perbedaan Minor - Tidak Perlu Perubahan",
+    evaluation: "Terdapat Perbedaan Minor",
+    changeNeed: "Tidak Perlu Perubahan Logic",
+    justification: "Perbedaan hanya pada tata letak komponen dan tidak mengubah fungsi maupun keluaran logic.",
+    logicUnavailable: false
+  },
+  {
+    label: "Perbedaan Minor - Perlu Perubahan",
+    evaluation: "Terdapat Perbedaan Minor",
+    changeNeed: "Perlu Perubahan Logic",
+    justification: "",
+    logicUnavailable: false
+  },
+  {
+    label: "Perbedaan Mayor - Tidak Perlu Perubahan",
+    evaluation: "Terdapat Perbedaan Mayor",
+    changeNeed: "Tidak Perlu Perubahan Logic",
+    justification: "Perbedaan telah dikaji dan masih sesuai dengan konfigurasi peralatan serta kebutuhan operasi setempat.",
+    logicUnavailable: false
+  },
+  {
+    label: "Perbedaan Mayor - Perlu Perubahan",
+    evaluation: "Terdapat Perbedaan Mayor",
+    changeNeed: "Perlu Perubahan Logic",
+    justification: "",
+    logicUnavailable: false
+  },
+  {
+    label: "Logic Belum Tersedia",
+    evaluation: "Terdapat Perbedaan Mayor",
+    changeNeed: "Perlu Perubahan Logic",
+    justification: "Logic Belum Tersedia",
+    logicUnavailable: true
+  }
+];
+
+function buildTestLogicImageDataUrl(ref, index, label) {
+  const logicName = escapeHtml(normalize(ref?.name || `Logic ${index + 1}`));
+  const scenario = escapeHtml(label || "Simulasi Logic Terimplementasi");
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540">
+      <defs>
+        <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#edfafd"/>
+          <stop offset="1" stop-color="#d9f0f5"/>
+        </linearGradient>
+      </defs>
+      <rect width="960" height="540" rx="22" fill="url(#bg)"/>
+      <rect x="26" y="26" width="908" height="488" rx="18" fill="#ffffff" stroke="#16879a" stroke-width="5"/>
+      <text x="480" y="195" text-anchor="middle" font-family="Arial, sans-serif" font-size="38" font-weight="700" fill="#0b6273">SIMULASI LOGIC TERIMPLEMENTASI</text>
+      <text x="480" y="266" text-anchor="middle" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="#173f4a">${logicName}</text>
+      <text x="480" y="330" text-anchor="middle" font-family="Arial, sans-serif" font-size="25" fill="#496a73">${scenario}</text>
+      <text x="480" y="416" text-anchor="middle" font-family="Arial, sans-serif" font-size="19" fill="#73868c">Gambar otomatis khusus pengujian aplikasi</text>
+    </svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+function autoFillLogicTestData() {
+  if (!isTestAutoFillEnabled()) {
+    showToast("Aktifkan pengisian otomatis melalui Pengaturan Menu terlebih dahulu.");
+    applyTestAutoFillVisibility();
+    return;
+  }
+
+  const rows = getManualLogicComparableRows();
+  if (!rows.length) {
+    showToast("Belum ada logic acuan untuk relai yang dipilih.");
+    return;
+  }
+
+  rows.forEach(({ ref, index }) => {
+    const variant = LOGIC_TEST_FILL_VARIANTS[index % LOGIC_TEST_FILL_VARIANTS.length];
+    const imageDataUrl = variant.logicUnavailable
+      ? ""
+      : (variant.useReferenceImage && ref.imageDataUrl
+        ? ref.imageDataUrl
+        : buildTestLogicImageDataUrl(ref, index, variant.label));
+    setManualLogicRowDraft(ref.id, {
+      checkImageDataUrl: imageDataUrl,
+      checkImageName: variant.logicUnavailable ? "" : `simulasi-logic-terimplementasi-${index + 1}.svg`,
+      logicUnavailable: variant.logicUnavailable,
+      evaluation: variant.evaluation,
+      changeNeed: variant.changeNeed,
+      justification: variant.justification
+    });
+  });
+
+  invalidLogicFields = new Map();
+  saveInspectionPageState();
+  renderManualLogicComparisonTable();
+  renderManualLogicSummary();
+  renderDashboardStats();
+  showToast(`${rows.length} baris logic diisi otomatis dengan ${LOGIC_TEST_FILL_VARIANTS.length} variasi kombinasi uji coba.`);
+}
+
+
 
 function isManualLogicRowComplete(draft) {
   const evaluation = normalize(draft.evaluation || "");
@@ -11066,7 +11290,9 @@ function isManualLogicRowComplete(draft) {
   if (!hasCheckedLogic || !evaluation) return false;
   if (evaluation === "Sesuai Persis") return !!draft.checkImageDataUrl;
   if (evaluation === "Terdapat Perbedaan Minor" || evaluation === "Terdapat Perbedaan Mayor") {
-    return isValidJustification(draft.justification || "") && !!normalize(draft.changeNeed || "");
+    if (!normalize(draft.changeNeed || "")) return false;
+    if (isLogicJustificationRequired(draft)) return isValidJustification(draft.justification || "");
+    return true;
   }
   return false;
 }
